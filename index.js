@@ -18,25 +18,31 @@ app.get("/health-check", (req, res) => {
 
 // Maps to keep track of connections
 const emailToSocketIdMap = new Map();
-const socketidToEmailMap = new Map();
+const socketIdToUserMap = new Map();
 
 io.on("connection", (socket) => {
   console.log(`Socket Connected`, socket.id);
 
   socket.on("room:join", (data) => {
-    const { email, room } = data;
-    emailToSocketIdMap.set(email, socket.id);
-    socketidToEmailMap.set(socket.id, email);
-    io.to(room).emit("user:joined", { email, id: socket.id });
+    const {  name, room  } = data;
+    emailToSocketIdMap.set(name, socket.id);
+    socketIdToUserMap.set(socket.id, name);
     socket.join(room);
+
+    // Notify other users in the room of the new user
+    io.to(room).emit("user:joined", { name, id: socket.id });
+
+    // Send confirmation to the new user
     io.to(socket.id).emit("room:join", data);
   });
 
-  socket.on("user:call", ({ to, offer }) => {
-    io.to(to).emit("incomming:call", { from: socket.id, offer });
+  socket.on("user:call", ({ to, offer, name }) => {
+    // Send call request with the caller's name
+    io.to(to).emit("incomming:call", { from: socket.id, offer, name });
   });
 
   socket.on("call:accepted", ({ to, ans }) => {
+    // Notify caller that the call was accepted
     io.to(to).emit("call:accepted", { from: socket.id, ans });
   });
 
@@ -48,6 +54,16 @@ io.on("connection", (socket) => {
   socket.on("peer:nego:done", ({ to, ans }) => {
     console.log("peer:nego:done", ans);
     io.to(to).emit("peer:nego:final", { from: socket.id, ans });
+  });
+
+  // Handle user disconnect
+  socket.on("disconnect", () => {
+    const user = socketIdToUserMap.get(socket.id);
+    if (user) {
+      emailToSocketIdMap.delete(user.name);
+      socketIdToUserMap.delete(socket.id);
+    }
+    console.log(`Socket Disconnected`, socket.id);
   });
 });
 
