@@ -17,7 +17,7 @@ app.get("/health-check", (req, res) => {
 });
 
 // Maps to keep track of connections
-const emailToSocketIdMap = new Map();
+const nameToSocketMap = new Map();
 const socketIdToUserMap = new Map();
 
 io.on("connection", (socket) => {
@@ -25,7 +25,7 @@ io.on("connection", (socket) => {
 
   socket.on("room:join", (data) => {
     const {  name, room  } = data;
-    emailToSocketIdMap.set(name, socket.id);
+    nameToSocketMap.set(name, socket.id);
     socketIdToUserMap.set(socket.id, name);
     socket.join(room);
 
@@ -54,13 +54,14 @@ io.on("connection", (socket) => {
   socket.on("peer:nego:done", ({ to, ans }) => {
     console.log("peer:nego:done", ans);
     io.to(to).emit("peer:nego:final", { from: socket.id, ans });
+    console.log("name to socket map :",nameToSocketMap);
   });
 
   // Handle user disconnect
   socket.on("disconnect", () => {
     const user = socketIdToUserMap.get(socket.id);
     if (user) {
-      emailToSocketIdMap.delete(user.name);
+      nameToSocketMap.delete(user.name);
       socketIdToUserMap.delete(socket.id);
     }
     console.log(`Socket Disconnected`, socket.id);
