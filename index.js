@@ -41,16 +41,15 @@ io.on("connection", (socket) => {
     io.to(socket.id).emit("room:join", data);
   });
 
-  socket.on("user:call", ({ to, offer, name }) => {
+  socket.on("user:call", ({ to, offer, name, room }) => {
     if (!io.sockets.sockets.has(to)) {
       log(`Attempted to call non-existent socket ID: ${to}`);
+      io.to(socket.id).emit("call:error", { error: "User not found" });
       return;
     }
-
-    // Send call request with the caller's name
     io.to(to).emit("incomming:call", { from: socket.id, offer, name });
     log(`User ${name} (${socket.id}) is calling ${to}`);
-  });
+});
 
   socket.on("call:accepted", ({ to, ans }) => {
     if (!io.sockets.sockets.has(to)) {
